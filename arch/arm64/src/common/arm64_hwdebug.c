@@ -71,7 +71,7 @@ struct arm64_debug_s
  * Private Data
  ****************************************************************************/
 
-static struct arm64_debug_s g_arm64_debug[CONFIG_SMP_NCPUS];
+static struct arm64_debug_s g_arm64_debug[CONFIG_SMP_NCPUS]; // (6.9) each core preserved its own debug br/wp
 
 /****************************************************************************
  * Private Function
@@ -227,14 +227,14 @@ static int arm64_watchpoint_remove(uint64_t addr)
  *
  ****************************************************************************/
 
-static int arm64_breakpoint_add(uintptr_t addr)
+static int arm64_breakpoint_add(uintptr_t addr) // (6.9) real work for br
 {
-  int num = arm64_get_num_brps();
+  int num = arm64_get_num_brps(); // (6.9) how many br hardware support
   int i;
 
   for (i = 0; i < num; i++)
     {
-      if (!(ARM64_DBG_GETN(bcr, i) & ARM64_DBGBWCR_E))
+      if (!(ARM64_DBG_GETN(bcr, i) & ARM64_DBGBWCR_E)) // (6.10) find the first hardware not yet enabled
         {
           ARM64_DBG_SETN(bvr, i, ARM64_MASK_ADDR(addr));
           ARM64_DBG_SETN(bcr, i,
@@ -372,22 +372,22 @@ int arm64_enable_dbgmonitor(void)
  ****************************************************************************/
 
 int up_debugpoint_add(int type, void *addr, size_t size,
-                      debug_callback_t callback, void *arg)
+                      debug_callback_t callback, void *arg) // (6.7) add aarch64 br/wp
 {
   struct arm64_debugpoint_s *dp;
-  int cpu = this_cpu();
+  int cpu = this_cpu(); // (6.7) which core br/wp will put on
   int ret = -EINVAL;
 
   if (type == DEBUGPOINT_BREAKPOINT)
     {
-      ret = arm64_breakpoint_add((uintptr_t)addr);
+      ret = arm64_breakpoint_add((uintptr_t)addr); // (6.8) add aarch64 br
       dp = g_arm64_debug[cpu].brps;
     }
   else if (type == DEBUGPOINT_WATCHPOINT_RO ||
            type == DEBUGPOINT_WATCHPOINT_WO ||
            type == DEBUGPOINT_WATCHPOINT_RW)
     {
-      ret = arm64_watchpoint_add(type, (uintptr_t)addr, size);
+      ret = arm64_watchpoint_add(type, (uintptr_t)addr, size);  // (6.8) add aarch64 wp
       dp = g_arm64_debug[cpu].wrps;
     }
 
@@ -399,8 +399,8 @@ int up_debugpoint_add(int type, void *addr, size_t size,
   dp[ret].type = type;
   dp[ret].addr = addr;
   dp[ret].size = size;
-  dp[ret].callback = callback;
-  dp[ret].arg = arg;
+  dp[ret].callback = callback; // (6.8) callback when br/wp hit
+  dp[ret].arg = arg; // (6.8) callback arg when br/wp hit
 
   return OK;
 }

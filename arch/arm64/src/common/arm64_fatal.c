@@ -569,7 +569,7 @@ uint64_t *arm64_fatal_handler(uint64_t *regs)
     {
       /* The fatal is not handled, print error and hung */
 
-      PANIC_WITH_REGS("panic", regs);
+      PANIC_WITH_REGS("panic", regs); // (0) panic -> assert -> uart_gdbstub_panic_callback
     }
 
   /* Clear irq flag */

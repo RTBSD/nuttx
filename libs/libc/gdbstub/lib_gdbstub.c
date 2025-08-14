@@ -565,7 +565,7 @@ static int gdb_recv_packet(FAR struct gdb_state_s *state)
               return -EOVERFLOW;
             }
 
-          state->pkt_buf[state->pkt_len++] = (char)ret;
+          state->pkt_buf[state->pkt_len++] = (char)ret; // (4.4) put recv char in buffer
         }
     }
   while (state->pkt_len == 0); /* Ignore empty packets */
@@ -939,7 +939,7 @@ static int gdb_send_signal_packet(FAR struct gdb_state_s *state,
 
   state->pkt_buf[0] = 'S';
   ret = gdb_bin2hex(&state->pkt_buf[1], sizeof(state->pkt_buf) - 1,
-                    &signal, 1);
+                    &signal, 1); // (5.1) send ‘S AA’ = 'T' is stop reason
   if (ret < 0)
     {
       return ret;
@@ -1740,7 +1740,7 @@ static int gdb_debugpoint(FAR struct gdb_state_s *state, bool enable)
   int ret;
 
   state->pkt_next += 1;
-  ret = gdb_expect_integer(state, &type);
+  ret = gdb_expect_integer(state, &type); // (6.1) parse the ztype to insert/remove
   if (ret < 0)
     {
       return ret;
@@ -1752,7 +1752,7 @@ static int gdb_debugpoint(FAR struct gdb_state_s *state, bool enable)
       return ret;
     }
 
-  ret = gdb_expect_integer(state, &addr);
+  ret = gdb_expect_integer(state, &addr); // (6.2) parse the br/wp addr
   if (ret < 0)
     {
       return ret;
@@ -1764,7 +1764,7 @@ static int gdb_debugpoint(FAR struct gdb_state_s *state, bool enable)
       return ret;
     }
 
-  ret = gdb_expect_integer(state, &size);
+  ret = gdb_expect_integer(state, &size); // (6.3) parst the size length of br/wp
   if (ret < 0)
     {
       return ret;
@@ -1774,7 +1774,7 @@ static int gdb_debugpoint(FAR struct gdb_state_s *state, bool enable)
     {
       case 0: /* just use hardware break */
       case 1:
-        type = DEBUGPOINT_BREAKPOINT;
+        type = DEBUGPOINT_BREAKPOINT; // (6.4) could be sw or hw breakpoint
         break;
       case 2:
         type = DEBUGPOINT_WATCHPOINT_WO;
@@ -1792,11 +1792,11 @@ static int gdb_debugpoint(FAR struct gdb_state_s *state, bool enable)
   if (enable)
     {
       ret = gdb_debugpoint_add(type, (FAR void *)addr, size,
-                               gdb_debugpoint_callback, state);
+                               gdb_debugpoint_callback, state); // (6.5) add br/wp
     }
   else
     {
-      ret = gdb_debugpoint_remove(type, (FAR void *)addr, size);
+      ret = gdb_debugpoint_remove(type, (FAR void *)addr, size); // (6.5) drop br/wp
     }
 
   if (ret < 0)
@@ -1890,9 +1890,9 @@ int gdb_debugpoint_add(int type, FAR void *addr, size_t size,
   point.callback = callback;
   point.arg = arg;
   return nxsched_smp_call((1 << CONFIG_SMP_NCPUS) - 1,
-                          gdb_smp_debugpoint_add, &point);
+                          gdb_smp_debugpoint_add, &point); // (6.6) smp add br/wp
 #else
-  return up_debugpoint_add(type, addr, size, callback, arg);
+  return up_debugpoint_add(type, addr, size, callback, arg); // (6.6) up add br/wp
 #endif
 }
 
@@ -2038,16 +2038,16 @@ int gdb_process(FAR struct gdb_state_s *state, int stopreason,
 
   if (stopreason != GDB_STOPREASON_NONE)
     {
-      gdb_send_stop(state, stopreason, stopaddr);
+      gdb_send_stop(state, stopreason, stopaddr); // (3) send stop reason
     }
 
   while ((ret = gdb_recv_packet(state)) >= 0)
-    {
+    { // (4) while recv rsp packet from GDB client
       /* Handle one letter commands */
 
-      switch (state->pkt_buf[0])
+      switch (state->pkt_buf[0]) // (4) handle recv packet
         {
-          case '?': /* gdbserial status */
+          case '?': /* gdbserial status */ // (5) when connection is first established to query the reason the target halted
             ret = gdb_send_signal_packet(state, 0x00);
             break;
           case 'g': /* Read registers */
@@ -2088,20 +2088,20 @@ int gdb_process(FAR struct gdb_state_s *state, int stopreason,
             break;
 #ifdef CONFIG_ARCH_HAVE_DEBUG
           case 'Z': /* Insert breakpoint/watchpoint */
-            ret = gdb_debugpoint(state, true);
+            ret = gdb_debugpoint(state, true); // (6) add breakpoint/watchpoint
             break;
           case 'z': /* Remove breakpoint/watchpoint */
             ret = gdb_debugpoint(state, false);
             break;
           case 's': /* Single step */
-            ret = gdb_step(state);
+            ret = gdb_step(state); // (7) step running, ??? seems not support for arm64
             if (ret < 0)
               {
                 break;
               }
 
             goto out;
-          case 'c': /* Continue */
+          case 'c': /* Continue */ // (8) continue running
             ret = gdb_continue(state);
             if (ret < 0)
               {

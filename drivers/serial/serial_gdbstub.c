@@ -96,7 +96,7 @@ static int uart_gdbstub_panic_callback(FAR struct notifier_block *nb,
                                        unsigned long action, FAR void *data)
 {
   FAR struct uart_gdbstub_s *uart_gdbstub =
-    container_of(nb, struct uart_gdbstub_s, nb);
+    container_of(nb, struct uart_gdbstub_s, nb); // (1) gdb stub instance
 #if CONFIG_SERIAL_GDBSTUB_PANIC_TIMEOUT != 0
   unsigned int base;
   unsigned int status;
@@ -188,7 +188,7 @@ static int uart_gdbstub_panic_callback(FAR struct notifier_block *nb,
          "target-charset ASCII\" -ex \"target remote /dev/ttyUSB0\"\n");
 
   syslog_flush();
-  gdb_process(uart_gdbstub->state, GDB_STOPREASON_NONE, NULL);
+  gdb_process(uart_gdbstub->state, GDB_STOPREASON_NONE, NULL); // (2) start gdb process from sync/debug exception
   return 0;
 }
 
@@ -205,7 +205,7 @@ static int uart_gdbstub_ctrlc(FAR struct uart_dev_s *dev,
                               FAR unsigned int *status)
 {
   uart_disablerxint(dev);
-  gdb_process(g_uart_gdbstub->state, GDB_STOPREASON_CTRLC, NULL);
+  gdb_process(g_uart_gdbstub->state, GDB_STOPREASON_CTRLC, NULL); // (2) start gdb process when recv ctrl+c
   uart_enablerxint(dev);
   return 0;
 }

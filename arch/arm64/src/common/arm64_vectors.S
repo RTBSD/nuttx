@@ -197,7 +197,7 @@ reserved_syscall:
     mov    sp, x0
     b      arm64_exit_exception
 2:
-    mov    x0, sp
+    mov    x0, sp // (0) handle sync with trap frame
     adrp   x5, arm64_fatal_handler
     add    x5, x5, #:lo12:arm64_fatal_handler
     blr    x5
